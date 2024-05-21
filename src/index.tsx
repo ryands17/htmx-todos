@@ -2,7 +2,7 @@ import { Hono } from 'hono';
 import { serveStatic } from 'hono/bun';
 import { jsxRenderer } from 'hono/jsx-renderer';
 import { clsx } from 'clsx';
-import { Layout, RemainingTodoCount, TodoList } from './components';
+import { Layout, RemainingTodoCount, TodoItem, TodoList } from './components';
 import { Filter, Todos } from './todos';
 
 const app = new Hono();
@@ -21,7 +21,7 @@ app.get('/', (c) => {
   const data = todos.list(filter as Filter);
 
   return c.render(
-    <div>
+    <>
       <section class="todoapp">
         <header class="header">
           <h1>todos + HTMX</h1>
@@ -30,6 +30,11 @@ app.get('/', (c) => {
             name="text"
             placeholder="What needs to be done?"
             autofocus
+            hx-post="/todo"
+            hx-trigger="keyup[keyCode==13]"
+            hx-target=".todo-list"
+            hx-swap="beforeend"
+            _="on htmx:afterOnLoad set target.value to ''"
           />
         </header>
 
@@ -38,12 +43,13 @@ app.get('/', (c) => {
         </section>
 
         <footer class="footer">
-          <span id="todo-count" class="todo-count">
-            <RemainingTodoCount count={todos.remaining} />
-          </span>
-          <ul class="filters">
+          <RemainingTodoCount count={todos.remaining} />
+          <ul class="filters" hx-boost="true">
             <li>
-              <a href="/" class={clsx({ selected: filter === 'all' })}>
+              <a
+                href="/?filter=all"
+                class={clsx({ selected: filter === 'all' })}
+              >
                 All
               </a>
             </li>
@@ -64,7 +70,14 @@ app.get('/', (c) => {
               </a>
             </li>
           </ul>
-          <button class="clear-completed">Clear completed</button>
+          <button
+            class="clear-completed"
+            hx-put="/clear-completed"
+            hx-target=".main"
+            hx-swap="innerHTML"
+          >
+            Clear completed
+          </button>
         </footer>
       </section>
       <footer class="info">
@@ -76,7 +89,78 @@ app.get('/', (c) => {
           Part of <a href="http://todomvc.com">TodoMVC</a>
         </p>
       </footer>
-    </div>,
+    </>,
+  );
+});
+
+app.post('/todo/toggle/:id', async (c) => {
+  const { id } = c.req.param();
+  const todo = todos.toggleSingle(id);
+
+  if (todo) {
+    return c.html(
+      <>
+        <TodoItem todo={todo} />
+        <RemainingTodoCount count={todos.remaining} oob />
+      </>,
+    );
+  }
+});
+
+app.post('/todo', async (c) => {
+  const body = await c.req.parseBody();
+  const newTodo = todos.create(body['text'] as string);
+
+  return c.html(
+    <>
+      <TodoItem todo={newTodo} />
+      <RemainingTodoCount count={todos.remaining} oob />
+    </>,
+  );
+});
+
+app.put('/todo/toggle', (c) => {
+  const toggledTodos = todos.toggleAll();
+
+  return c.html(
+    <>
+      <TodoList todos={toggledTodos} />
+      <RemainingTodoCount count={todos.remaining} oob />
+    </>,
+  );
+});
+
+app.put('/todo/:id', async (c) => {
+  const { id } = c.req.param();
+  const body = await c.req.parseBody();
+  const updatedTodo = todos.update({ id, text: body['todoText'] as string });
+
+  if (!updatedTodo) {
+    return c.html('', 500);
+  }
+
+  return c.html(<TodoItem todo={updatedTodo} />);
+});
+
+app.delete('/todo/:id', (c) => {
+  const { id } = c.req.param();
+  const todo = todos.deleteSingle(id);
+
+  if (!todo) {
+    return c.html('', 204);
+  }
+
+  return c.html(<RemainingTodoCount count={todos.remaining} oob />, 200);
+});
+
+app.put('/clear-completed', (c) => {
+  const remainingTodos = todos.clearCompleted();
+
+  return c.html(
+    <>
+      <TodoList todos={remainingTodos} />
+      <RemainingTodoCount count={todos.remaining} oob />
+    </>,
   );
 });
 

@@ -10,7 +10,7 @@ export const Layout: FC = (props) => {
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>Express + HTMX</title>
         <link rel="stylesheet" href="/static/index.css" />
-        <script src="/static/htmx@1.9.8.js"></script>
+        <script src="/static/htmx@1.9.12.js"></script>
         <script src="/static/hyperscript@0.9.12.js"></script>
       </head>
       <body>{props.children}</body>
@@ -22,11 +22,22 @@ export const Layout: FC = (props) => {
   );
 };
 
-export const RemainingTodoCount = ({ count }: { count: number }) => {
+export const RemainingTodoCount = ({
+  count,
+  oob = false,
+}: {
+  count: number;
+  oob?: boolean;
+}) => {
   const todoText = count === 1 ? 'todo' : 'todos';
 
+  const props: Record<string, string> = {};
+  if (oob) {
+    props['hx-swap-oob'] = 'true';
+  }
+
   return (
-    <span hx-swap-oob="innerHTML:#todo-count">
+    <span id="todo-count" class="todo-count" {...props}>
       <strong>{count}</strong> {todoText} left
     </span>
   );
@@ -42,8 +53,8 @@ export const TodoList = ({ todos }: { todos: Todo[] }) => {
         name="allTodosDone"
         class="toggle-all"
         type="checkbox"
-        hx-put="/todos/toggle"
-        hx-target=".todo-list"
+        hx-put="/todo/toggle"
+        hx-target=".main"
         hx-swap="innerHTML"
         checked={allTodosDone}
       />
@@ -71,7 +82,7 @@ export const TodoItem = ({ todo }: { todo: Todo }) => {
           type="checkbox"
           checked={todo.completed}
           name="completed"
-          hx-post={`/todos/toggle/${todo.id}`}
+          hx-post={`/todo/toggle/${todo.id}`}
           hx-target="closest li"
           hx-swap="outerHTML"
         />
@@ -80,7 +91,7 @@ export const TodoItem = ({ todo }: { todo: Todo }) => {
         </label>
         <button
           class="destroy"
-          hx-post={`/todos/${todo.id}`}
+          hx-delete={`/todo/${todo.id}`}
           hx-target="closest li"
           hx-swap="outerHTML"
         />
@@ -90,8 +101,8 @@ export const TodoItem = ({ todo }: { todo: Todo }) => {
         name="todoText"
         value={todo.text}
         _="on keyup[key is 'Escape'] remove .editing from the closest parent <li/>"
-        hx-put={`/todos/${todo.id}`}
-        hx-trigger="keyup[keyCode==13]"
+        hx-put={`/todo/${todo.id}`}
+        hx-trigger="keyup[code=='Enter']"
         hx-target="closest li"
         hx-swap="outerHTML"
       />

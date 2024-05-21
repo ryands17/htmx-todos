@@ -38,11 +38,13 @@ export class Todos {
   }
 
   create(text: string) {
-    this.todos.push({
+    const newTodo = {
       id: ulid(),
       text,
       completed: false,
-    });
+    };
+    this.todos.push(newTodo);
+    return newTodo;
   }
 
   update({
@@ -82,12 +84,27 @@ export class Todos {
     return this.todos[index];
   }
 
+  toggleAll() {
+    this.todos = this.todos.map(({ completed, ...rest }) => ({
+      ...rest,
+      completed: !completed,
+    }));
+
+    return this.todos;
+  }
+
   deleteSingle(id: string) {
     const index = this.todos.findIndex((todo) => todo.id === id);
     if (index === -1) {
-      return null;
+      return false;
     }
 
     this.todos.splice(index, 1);
+    return true;
+  }
+
+  clearCompleted() {
+    this.todos = this.todos.filter((todo) => !todo.completed);
+    return this.todos;
   }
 }
