@@ -1,7 +1,9 @@
 import { Hono } from 'hono';
 import { serveStatic } from 'hono/bun';
 import { jsxRenderer } from 'hono/jsx-renderer';
-import { Layout } from './components';
+import { clsx } from 'clsx';
+import { Layout, RemainingTodoCount, TodoList } from './components';
+import { Filter, Todos } from './todos';
 
 const app = new Hono();
 
@@ -11,7 +13,13 @@ app.use(
   jsxRenderer(({ children }) => <Layout>{children}</Layout>, { docType: true }),
 );
 
+const todos = new Todos();
+
 app.get('/', (c) => {
+  const { filter = 'all' } = c.req.query();
+
+  const data = todos.list(filter as Filter);
+
   return c.render(
     <div>
       <section class="todoapp">
@@ -24,18 +32,25 @@ app.get('/', (c) => {
             autofocus
           />
         </header>
+
+        <section class="main">
+          <TodoList todos={data} />
+        </section>
+
         <footer class="footer">
-          <span id="todo-count" class="todo-count" />
+          <span id="todo-count" class="todo-count">
+            <RemainingTodoCount count={todos.remaining} />
+          </span>
           <ul class="filters">
             <li>
-              <a href="/" class="selected">
+              <a href="/" class={clsx({ selected: filter === 'all' })}>
                 All
               </a>
             </li>
             <li>
               <a
                 href="/?filter=active"
-                // class={clsx({ selected: filter === 'active' })}
+                class={clsx({ selected: filter === 'active' })}
               >
                 Active
               </a>
@@ -43,7 +58,7 @@ app.get('/', (c) => {
             <li>
               <a
                 href="/?filter=completed"
-                // class={clsx({ selected: filter === 'completed' })}
+                class={clsx({ selected: filter === 'completed' })}
               >
                 Completed
               </a>
